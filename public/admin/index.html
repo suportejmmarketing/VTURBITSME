@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="pt-br" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VTurb-Self · Painel</title>
+<link rel="stylesheet" href="style.css?v=14">
+</head>
+<body>
+<!-- LOGIN -->
+<div id="login" class="login-wrap">
+  <div class="card login-card">
+    <div class="logo">▶ <span>VTurb<b>Self</b></span></div>
+    <p class="muted">Painel de vídeos inteligentes. Entre para continuar.</p>
+    <label>Senha</label>
+    <input id="pwd" type="password" placeholder="senha do painel" onkeydown="if(event.key==='Enter')login()">
+    <button class="btn btn-pri full" onclick="login()">Entrar</button>
+    <p id="loginErr" class="err"></p>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" class="hidden">
+  <header class="topbar">
+    <div class="logo sm">▶ <span>VTurb<b>Self</b></span></div>
+    <span class="env" id="envTag"></span>
+    <div class="grow"></div>
+    <button class="icon-btn" id="themeToggle" title="Tema claro/escuro">🌙</button>
+    <button class="btn btn-ghost" onclick="logout()">Sair</button>
+  </header>
+
+  <main class="container">
+    <!-- UPLOAD -->
+    <div class="card">
+      <div class="card-head"><b>＋ Novo vídeo</b></div>
+      <div class="up-grid">
+        <div>
+          <label>Título</label>
+          <input id="upTitle" placeholder="Ex: VSL Oferta Imobi">
+        </div>
+        <div>
+          <label>Arquivo de vídeo (.mp4)</label>
+          <input id="upFile" type="file" accept="video/*">
+        </div>
+      </div>
+      <div class="row mt">
+        <button class="btn btn-pri" id="upBtn" onclick="uploadVideo()">Enviar vídeo</button>
+        <span id="upStatus" class="muted"></span>
+      </div>
+    </div>
+
+    <!-- LISTA -->
+    <div class="card">
+      <div class="card-head">
+        <b>Seus vídeos <span class="muted" id="vcount"></span></b>
+        <div class="list-tools">
+          <input id="search" placeholder="🔍 Pesquisar vídeos" oninput="renderList()">
+          <select id="sortBy" onchange="renderList()">
+            <option value="recent">Mais recentes</option>
+            <option value="plays">Mais plays</option>
+            <option value="name">Nome (A-Z)</option>
+          </select>
+        </div>
+      </div>
+      <div id="list" class="vid-list"></div>
+    </div>
+  </main>
+</div>
+
+<!-- EDITOR VISUAL -->
+<div id="editor" class="hidden editor">
+  <header class="topbar">
+    <button class="btn btn-ghost" onclick="closeEditor()">← Voltar</button>
+    <div class="grow"></div>
+    <h3 id="edTitle" class="ed-title"></h3>
+    <div class="grow"></div>
+    <span class="device-toggle">
+      <button id="devDesktop" class="dev active" onclick="setDevice('desktop')">🖥 PC</button>
+      <button id="devMobile" class="dev" onclick="setDevice('mobile')">📱 Mobile</button>
+    </span>
+    <button class="btn btn-pri" onclick="saveVideo(true)">Salvar</button>
+  </header>
+
+  <div class="editor-body">
+    <!-- PREVIEW AO VIVO -->
+    <div class="preview-col">
+      <div class="preview-stage" id="previewStage">
+        <div class="frame-wrap" id="frameWrap">
+          <iframe id="previewFrame" allow="autoplay; fullscreen"></iframe>
+        </div>
+      </div>
+      <p class="muted center" id="dragHint"></p>
+    </div>
+
+    <!-- CONTROLES -->
+    <aside class="controls-col">
+      <!-- abas -->
+      <div class="tabs">
+        <button class="tab active" data-tab="install">Instalar</button>
+        <button class="tab" data-tab="player">Player</button>
+        <button class="tab" data-tab="overlay">Overlay</button>
+        <button class="tab" data-tab="stats">Métricas</button>
+      </div>
+
+      <!-- INSTALAR -->
+      <section class="tabpane" data-pane="install">
+        <h4>📋 Código de instalação</h4>
+        <p class="muted">Cole no seu site, página de vendas ou checkout (GGCheckout):</p>
+        <div class="code" id="embedCode"></div>
+        <button class="btn btn-ghost full" onclick="copyEmbed()">Copiar código</button>
+        <p class="muted sm-note">⚠️ Funciona online só depois de hospedar (Hostinger). Local serve pra testar.</p>
+      </section>
+
+      <!-- PLAYER -->
+      <section class="tabpane hidden" data-pane="player">
+        <h4>🎨 Tema</h4>
+        <div class="seg" data-setting="theme">
+          <button data-val="dark">🌙 Escuro</button>
+          <button data-val="light">☀️ Claro</button>
+        </div>
+
+        <h4>━ Barra de progresso</h4>
+        <div class="seg" data-setting="progressBar.style">
+          <button data-val="thin-handle">Padrão</button>
+          <button data-val="thick-gradient">Gradiente</button>
+          <button data-val="hidden">Oculta</button>
+        </div>
+        <div id="barOptions">
+          <label class="sw"><input type="checkbox" data-setting="progressBar.smart"><span><b>Progresso Inteligente</b> (anda rápido no início, devagar no fim)</span></label>
+          <div id="smartCurveWrap">
+            <label>Intensidade: <b id="smartVal"></b></label>
+            <input type="range" min="1" max="4" step="0.1" class="range" data-setting="progressBar.smartCurve">
+            <p class="muted" style="font-size:12px;margin-top:2px">1 = normal · maior = barra enche mais rápido no começo</p>
+          </div>
+          <label>Altura da barra</label>
+          <div class="slider-num">
+            <input type="range" min="2" max="30" step="1" class="range" data-setting="progressBar.height" id="barHRange">
+            <input type="number" min="2" max="30" class="num-box" data-setting="progressBar.height" id="barHNum">
+          </div>
+          <label class="sw"><input type="checkbox" data-setting="progressBar.hoverGrow"><span>Engordar no hover (estilo VTurb)</span></label>
+          <label class="sw"><input type="checkbox" data-setting="progressBar.showHandle"><span>Mostrar bolinha (handle)</span></label>
+          <label class="sw"><input type="checkbox" data-setting="progressBar.usePlayColor"><span>Usar cor primária na barra</span></label>
+          <div id="barColorWrap">
+            <label>Cor da barra (preenchida)</label>
+            <input type="color" class="color" data-setting="progressBar.barColor">
+          </div>
+          <div class="grid2">
+            <div><label>Cor do trilho (fundo)</label><input type="color" class="color" data-setting="progressBar.trackColor"></div>
+            <div><label>Opacidade trilho: <b id="trackOpVal"></b></label><input type="range" min="0" max="1" step="0.05" class="range" data-setting="progressBar.trackOpacity"></div>
+          </div>
+        </div>
+
+        <h4>⚙️ Reprodução</h4>
+        <label class="sw"><input type="checkbox" data-setting="autoplay"><span>Autoplay (toca sozinho)</span></label>
+        <label class="sw"><input type="checkbox" data-setting="startMuted"><span>Começar mudo</span></label>
+        <label class="sw"><input type="checkbox" data-setting="allowSeek"><span>Permitir avançar o vídeo</span></label>
+        <label class="sw"><input type="checkbox" data-setting="loop"><span>Loop</span></label>
+
+        <h4>🎛 Controles</h4>
+        <label class="sw"><input type="checkbox" data-setting="controls.minimal"><span><b>Modo VSL</b> (esconder barra de botões, só progresso)</span></label>
+        <label class="sw"><input type="checkbox" data-setting="controls.clickToPause"><span>Pausar ao clicar no vídeo</span></label>
+        <label class="sw"><input type="checkbox" data-setting="controls.speed"><span>Botão de velocidade (1x/1.5x/2x)</span></label>
+        <label class="sw"><input type="checkbox" data-setting="controls.fullscreen"><span>Tela cheia</span></label>
+        <label class="sw"><input type="checkbox" data-setting="controls.volume"><span>Controle de volume</span></label>
+        <label class="sw"><input type="checkbox" data-setting="controls.timeDisplay"><span>Tempo decorrido/restante</span></label>
+        <label class="sw"><input type="checkbox" data-setting="controls.autoHide"><span>Esconder controles automaticamente</span></label>
+
+        <h4>🎨 Cor primária</h4>
+        <input type="color" class="color" data-setting="primaryColor">
+      </section>
+
+      <!-- OVERLAY (caixa de unmute) -->
+      <section class="tabpane hidden" data-pane="overlay">
+        <label class="sw"><input type="checkbox" data-setting="showUnmuteButton"><span><b>Mostrar overlay de unmute</b></span></label>
+        <h4>🎨 Templates prontos</h4>
+        <div id="overlayTemplates" class="tpl-grid"></div>
+        <p class="muted">Arraste a caixa no preview para mover, e os pontos azuis para redimensionar.</p>
+        <h4>🔇 Ícone central</h4>
+        <div class="seg" data-setting="overlay.icon">
+          <button data-val="video-muted">Vídeo mudo</button>
+          <button data-val="sound-muted">Som mudo</button>
+          <button data-val="play">Play</button>
+          <button data-val="none">Nenhum</button>
+        </div>
+        <label>Texto superior</label>
+        <input data-setting="overlay.topText" placeholder="Seu vídeo já começou">
+        <label>Texto inferior</label>
+        <input data-setting="overlay.bottomText" placeholder="Clique para ouvir">
+        <div class="grid2">
+          <div><label>Cor do texto</label><input type="color" class="color" data-setting="overlay.textColor"></div>
+          <div><label>Cor de fundo</label><input type="color" class="color" data-setting="overlay.bgColor"></div>
+        </div>
+        <label>Opacidade do fundo: <b id="ovOpVal"></b></label>
+        <input type="range" min="0" max="1" step="0.05" class="range" data-setting="overlay.bgOpacity">
+        <label class="sw"><input type="checkbox" data-setting="overlay.pulse"><span>Fazer o autoplay pulsar</span></label>
+        <label class="sw"><input type="checkbox" data-setting="detectInteraction"><span>Detectar interação (som inicia a qualquer clique na página)</span></label>
+        <label class="sw"><input type="checkbox" data-setting="previewMode"><span><b>Prévia no fundo</b> (vídeo roda mudo; ao clicar, reinicia com som)</span></label>
+      </section>
+
+      <!-- STATS -->
+      <section class="tabpane hidden" data-pane="stats">
+        <h4>📊 Desempenho</h4>
+        <div id="stats" class="stats-box muted">—</div>
+        <div class="danger-zone">
+          <button class="btn btn-danger full" onclick="deleteVideo()">Excluir vídeo</button>
+        </div>
+      </section>
+    </aside>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+<script src="app.js?v=14"></script>
+</body>
+</html>

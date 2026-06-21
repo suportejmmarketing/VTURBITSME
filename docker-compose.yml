@@ -1,0 +1,14 @@
+services:
+  vturb:
+    build: .
+    container_name: vturb-self
+    ports:
+      - "4000:4000"
+    environment:
+      # Em producao, troque pela URL do seu dominio na Hostinger:
+      PUBLIC_URL: "${PUBLIC_URL:-http://localhost:4000}"
+      ADMIN_PASSWORD: "${ADMIN_PASSWORD:-admin123}"
+      MAX_UPLOAD_MB: "2000"
+    volumes:
+      - ./data:/app/data    # videos e banco persistem aqui (fora do container)
+    restart: unless-stopped

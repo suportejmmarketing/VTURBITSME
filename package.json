@@ -1,0 +1,20 @@
+{
+  "name": "vturb-self",
+  "version": "1.0.0",
+  "description": "Plataforma self-hosted de player de video inteligente (estilo VTurb) para VSL/checkout",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.3.0",
+    "express": "^4.19.2",
+    "multer": "^2.2.0",
+    "nanoid": "^5.0.7"
+  }
+}

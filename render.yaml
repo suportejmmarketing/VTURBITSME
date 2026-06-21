@@ -1,0 +1,16 @@
+# Config de deploy automatico no Render.com
+# (Render le este arquivo e sobe a plataforma sozinho)
+services:
+  - type: web
+    name: vturb-self
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node src/server.js
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: ADMIN_PASSWORD
+        sync: false        # voce define no painel do Render (senha do seu painel)
+      - key: PUBLIC_URL
+        sync: false        # voce preenche com a URL que o Render gerar

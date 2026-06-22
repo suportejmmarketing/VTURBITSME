@@ -1,0 +1,14 @@
+services:
+  vturb:
+    build: .
+    container_name: vturb-self
+    ports:
+      - "80:4000"           # acessa direto pelo IP/dominio (sem :4000)
+    environment:
+      # A URL e detectada automaticamente pela requisicao. So defina PUBLIC_URL
+      # se quiser forcar (ex: quando ja tiver HTTPS no dominio).
+      ADMIN_PASSWORD: "${ADMIN_PASSWORD:-MudeEssaSenha123}"
+      MAX_UPLOAD_MB: "2000"
+    volumes:
+      - ./data:/app/data    # videos e banco persistem aqui (fora do container)
+    restart: unless-stopped

@@ -379,9 +379,11 @@ const PLAYER_JS = `
       v.muted = true; v.loop = true;
       updateMuteUI();
       controls.classList.add('preview-hidden'); // esconde a barra durante a previa
+      if(S.showUnmuteButton) showBig();          // mostra a caixa "clique para ouvir"
       var pp = v.play();
       if(pp&&pp.catch) pp.catch(function(){});
-      if(S.showUnmuteButton) showBig();
+      // garante que a caixa fique visivel mesmo apos o play disparar
+      setTimeout(function(){ if(inPreview && S.showUnmuteButton) showBig(); }, 50);
       return;
     }
 
@@ -438,7 +440,11 @@ const PLAYER_JS = `
     if(inPreview || big.classList.contains('show')) return;
     if(S.controls.clickToPause) toggle();
   });
-  v.addEventListener('play', function(){ stage.classList.add('playing'); hideBig(); if(!tracked.play){tracked.play=1;track('play');} });
+  v.addEventListener('play', function(){
+    stage.classList.add('playing');
+    if(!inPreview) hideBig();   // na previa, mantem a caixa "clique para ouvir" visivel
+    if(!inPreview && !tracked.play){ tracked.play=1; track('play'); }
+  });
   v.addEventListener('pause', function(){ stage.classList.remove('playing'); });
   v.addEventListener('ended', function(){ track('ended'); });
 

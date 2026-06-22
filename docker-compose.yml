@@ -2,13 +2,18 @@ services:
   vturb:
     build: .
     container_name: vturb-self
-    ports:
-      - "80:4000"           # acessa direto pelo IP/dominio (sem :4000)
+    restart: unless-stopped
+    expose:
+      - "4000"              # porta interna; o Traefik recebe 80/443 e repassa pra ca
     environment:
-      # A URL e detectada automaticamente pela requisicao. So defina PUBLIC_URL
-      # se quiser forcar (ex: quando ja tiver HTTPS no dominio).
+      PUBLIC_URL: "https://video.pagmentoprotegido.shop"
       ADMIN_PASSWORD: "${ADMIN_PASSWORD:-MudeEssaSenha123}"
       MAX_UPLOAD_MB: "2000"
     volumes:
       - ./data:/app/data    # videos e banco persistem aqui (fora do container)
-    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.vturb.rule=Host(`video.pagmentoprotegido.shop`)"
+      - "traefik.http.routers.vturb.entrypoints=websecure"
+      - "traefik.http.routers.vturb.tls.certresolver=letsencrypt"
+      - "traefik.http.services.vturb.loadbalancer.server.port=4000"

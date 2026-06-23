@@ -623,18 +623,17 @@ const PLAYER_JS = `
   document.getElementById('resumeRestart').addEventListener('click', function(e){
     e.stopPropagation(); hideResume();
     try{ v.currentTime = 0; }catch(e2){} maxT = 0; saveProgress(0, false);
-    v.muted=false; updateMuteUI(); v.play(); hideBig();
+    v.pause(); v.muted=true; updateMuteUI();
+    showBig(); // volta pra tela de play/unmute
   });
 
-  // ao carregar: se a pessoa JA assistiu (100%) ou tem progresso salvo, mostra a tela
+  // ao carregar: so mostra tela de retomar se JA assistiu o video completo (done=true)
   function checkResumeOnLoad(){
     var pr = loadProgress();
-    if(!pr) return;
-    if(pr.done || (pr.t && pr.t > 5)){
-      hideBig();          // nao mostra a caixa de unmute junto
-      showResume();
-      v.pause();
-    }
+    if(!pr || !pr.done) return;
+    hideBig();
+    showResume();
+    v.pause();
   }
 
   // init

@@ -617,11 +617,13 @@ const PLAYER_JS = `
     try{ skip = sessionStorage.getItem(SKEY) === '1'; }catch(e){}
     if(skip){
       setLoad(100);
-      try{ sessionStorage.setItem(SKEY, '1'); }catch(e){}
       startPlayerOnce();
       hideLoadingNow();
       return;
     }
+    // grava a marca JA AGORA (nao espera os 6s): se o site recarregar o iframe
+    // no meio do loading, o proximo load detecta e pula -> nunca repete o anel.
+    try{ sessionStorage.setItem(SKEY, '1'); }catch(e){}
     setLoad(0);
     loadStart = nowMs();
     loadRaf = requestAnimationFrame(loadTick);

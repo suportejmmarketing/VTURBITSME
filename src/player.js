@@ -34,7 +34,7 @@ export function renderPlayerHtml(video, publicUrl) {
 </head>
 <body>
   <div id="stage">
-    <video id="v" playsinline webkit-playsinline preload="auto"></video>
+    <video id="v" playsinline webkit-playsinline preload="metadata"></video>
 
     <!-- Loading circular (anel + % no meio) enquanto o video carrega -->
     <div id="loading" class="loading">
@@ -577,7 +577,7 @@ const PLAYER_JS = `
     if(loadDone) return; loadDone = true;
     if(loadRaf) cancelAnimationFrame(loadRaf);
     setLoad(100);
-    setTimeout(function(){ loadEl.classList.add('done'); }, 200);
+    setTimeout(function(){ loadEl.classList.add('done'); setTimeout(function(){ loadEl.style.display='none'; }, 400); }, 200);
   }
   var loadRaf = null;
   function loadTick(){
@@ -658,6 +658,7 @@ export function renderPlayerScript(video, publicUrl) {
   box.style.cssText = 'position:relative;width:100%;max-width:100%;aspect-ratio:16/9;min-height:200px;margin:0 auto;background:#000;overflow:visible;';
   var iframe = document.createElement('iframe');
   iframe.src = ${JSON.stringify(playerUrl)};
+  iframe.loading = 'lazy';
   iframe.allow = 'autoplay; fullscreen; encrypted-media';
   iframe.setAttribute('allowfullscreen','');
   iframe.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:0;';

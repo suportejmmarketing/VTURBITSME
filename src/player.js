@@ -34,7 +34,7 @@ export function renderPlayerHtml(video, publicUrl) {
 </head>
 <body>
   <div id="stage">
-    <video id="v" playsinline webkit-playsinline preload="auto"></video>
+    <video id="v" playsinline webkit-playsinline preload="auto" fetchpriority="high"></video>
 
     <!-- Loading circular (anel + % no meio) enquanto o video carrega -->
     <div id="loading" class="loading">
@@ -591,9 +591,13 @@ const PLAYER_JS = `
   var loadRaf = null;
   function loadTick(){
     if(loadDone) return;
-    var target = loadReady ? 100 : 88;
-    var speed = loadReady ? 0.3 : 0.055;
-    loadShown += (target - loadShown) * speed + 0.3;
+    if(loadReady){
+      // buffer pronto: corre pra 100%
+      loadShown += (100 - loadShown) * 0.25 + 1;
+    } else {
+      // sempre avanca devagar ate ~92% (nunca trava, da sensacao de progresso)
+      loadShown += (92 - loadShown) * 0.007 + 0.12;
+    }
     if(loadShown > 100) loadShown = 100;
     setLoad(loadShown);
     if(loadReady && loadShown >= 99.5){ finishLoad(); return; }
@@ -675,7 +679,6 @@ export function renderPlayerScript(video, publicUrl) {
   box.style.cssText = 'position:relative;width:100%;max-width:100%;aspect-ratio:16/9;min-height:200px;margin:0 auto;background:#000;overflow:visible;';
   var iframe = document.createElement('iframe');
   iframe.src = ${JSON.stringify(playerUrl)};
-  iframe.loading = 'lazy';
   iframe.allow = 'autoplay; fullscreen; encrypted-media';
   iframe.setAttribute('allowfullscreen','');
   iframe.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:0;';

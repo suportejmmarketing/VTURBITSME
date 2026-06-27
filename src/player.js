@@ -699,13 +699,18 @@ export function renderPlayerScript(video, publicUrl) {
   var current = document.currentScript;
   var box = document.createElement('div');
   box.id = DOM_ID;
-  box.style.cssText = 'position:relative;width:100%;max-width:${maxW};aspect-ratio:${ar};margin:0 auto;background:#000;';
+  box.style.cssText = 'position:relative;width:100%;max-width:${maxW};margin:0 auto;background:#000;';
+  // forca a proporcao com !important + height:auto -> resiste a CSS do site/builder
+  // que tente impor altura ou proporcao vertical no container.
+  box.style.setProperty('aspect-ratio', '${ar}', 'important');
+  box.style.setProperty('height', 'auto', 'important');
+  box.style.setProperty('align-self', 'center', 'important'); // nao estica em flex
   var iframe = document.createElement('iframe');
   iframe.src = ${JSON.stringify(playerUrl)};
   iframe.allow = 'autoplay; fullscreen; encrypted-media';
   iframe.setAttribute('allowfullscreen','');
   iframe.setAttribute('loading','eager');
-  iframe.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:0;';
+  iframe.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:0;display:block;';
   box.appendChild(iframe);
   if (current && current.parentNode) current.parentNode.insertBefore(box, current);
   else document.body.appendChild(box);

@@ -580,10 +580,7 @@ const PLAYER_JS = `
     setLoad(100);
     setTimeout(function(){
       loadEl.classList.add('done');
-      setTimeout(function(){
-        loadEl.style.display = 'none';
-        if(!startDone){ startDone=true; applyVisual(); checkResumeOnLoad(); if(!resumeEl.classList.contains('show')) start(); poke(); }
-      }, 400);
+      setTimeout(function(){ loadEl.style.display = 'none'; }, 400);
     }, 150);
   }
   var loadRaf = null;
@@ -600,10 +597,18 @@ const PLAYER_JS = `
     if(loadReady && loadShown >= 99.5){ finishLoad(); return; }
     loadRaf = requestAnimationFrame(loadTick);
   }
-  // libera quando canplay (dados suficientes pra comecar)
-  v.addEventListener('canplay', function(){ loadReady = true; });
-  // fallback: 15s
-  setTimeout(function(){ loadReady = true; }, 15000);
+  // libera o loading so quando o video REALMENTE comecou a tocar (sem falsos positivos)
+  v.addEventListener('playing', function(){ loadReady = true; });
+  // fallback: 20s (conexao muito lenta)
+  setTimeout(function(){ loadReady = true; }, 20000);
+  // inicia tentativa de play assim que metadados estiverem prontos
+  var playerStarted = false;
+  v.addEventListener('loadedmetadata', function(){
+    if(playerStarted) return; playerStarted = true;
+    applyVisual(); checkResumeOnLoad();
+    if(!resumeEl.classList.contains('show')) start();
+    poke();
+  });
 
   // ---------- Tela "Continuar / Recomecar" (salva progresso no localStorage) ----------
   var resumeEl = document.getElementById('resume');

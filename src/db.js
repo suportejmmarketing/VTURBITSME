@@ -55,9 +55,9 @@ export const DEFAULT_SETTINGS = {
     textColor: '#ffffff',
     bgColor: '#1f9d6b',
     bgOpacity: 0.82,
-    // posicao (x,y centro em %) e tamanho (w,h em %) por device
-    desktop: { x: 50, y: 50, w: 52, h: 60 },
-    mobile:  { x: 50, y: 42, w: 80, h: 46 },
+    // posicao (x,y = borda esquerda/topo em %) e tamanho (w,h em %) por device
+    desktop: { x: 24, y: 20, w: 52, h: 60 },
+    mobile:  { x: 10, y: 27, w: 80, h: 46 },
   },
 
   // Barra de progresso

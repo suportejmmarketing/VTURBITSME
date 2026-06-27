@@ -135,10 +135,10 @@ html[data-theme="light"]{--ctl-bg:rgba(255,255,255,.88);--ctl-fg:#10131a;--track
 .bigplay.show{display:block}
 .obox{position:absolute;display:flex;flex-direction:column;align-items:center;justify-content:space-between;
   text-align:center;padding:4% 5%;gap:4%;border-radius:10px;box-sizing:border-box;overflow:hidden;
-  left:50%;top:50%;width:52%;height:60%;transform:translate(-50%,-50%);transition:none;
+  left:24%;top:20%;width:52%;height:60%;transition:none;
   container-type:size}
 .bigplay.pulse .obox{animation:opulse 1.6s ease-in-out infinite}
-@keyframes opulse{0%,100%{transform:translate(-50%,-50%) scale(1)}50%{transform:translate(-50%,-50%) scale(1.04)}}
+@keyframes opulse{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}
 /* fonte escala pelo tamanho da CAIXA (cqi/cqh), nao da viewport -> nunca vaza */
 .o-top,.o-bot{font-weight:800;line-height:1.1;width:100%;text-shadow:0 2px 6px rgba(0,0,0,.25);
   font-size:clamp(11px,min(11cqi,26cqh),30px);overflow:hidden;text-overflow:ellipsis;flex:none}
@@ -355,7 +355,8 @@ const PLAYER_JS = `
   }
   function anyControl(){ return S.controls.speed||S.controls.fullscreen||S.controls.volume||S.controls.timeDisplay; }
 
-  function isMobile(){ return window.innerWidth < 640; }
+  // usa largura do stage (iframe), nao da janela, pra detectar mobile corretamente
+  function isMobile(){ return stage.offsetWidth < 640; }
 
   // ---------- fonte ----------
   function loadSource(){
@@ -574,19 +575,20 @@ const PLAYER_JS = `
   }
   function finishLoad(){
     if(loadDone) return; loadDone = true;
+    if(loadRaf) cancelAnimationFrame(loadRaf);
     setLoad(100);
     setTimeout(function(){ loadEl.classList.add('done'); }, 200);
   }
+  var loadRaf = null;
   function loadTick(){
     if(loadDone) return;
-    // sobe rapido ate 90%; depois so completa quando o video estiver pronto
     var target = loadReady ? 100 : 90;
     var speed = loadReady ? 0.35 : 0.06;
     loadShown += (target - loadShown) * speed + 0.4;
     if(loadShown >= 100) loadShown = 100;
     setLoad(loadShown);
     if(loadReady && loadShown >= 99.5){ finishLoad(); return; }
-    requestAnimationFrame(loadTick);
+    loadRaf = requestAnimationFrame(loadTick);
   }
   // video pronto pra tocar -> permite completar 100%
   v.addEventListener('canplay', function(){ loadReady = true; });

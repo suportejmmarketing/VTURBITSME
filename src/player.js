@@ -653,7 +653,7 @@ export function renderPlayerScript(video, publicUrl) {
   return `(function(){
   var current = document.currentScript;
   var box = document.createElement('div');
-  box.style.cssText = 'position:relative;width:100%;max-width:100%;aspect-ratio:16/9;margin:0 auto;background:#000;';
+  box.style.cssText = 'position:relative;width:100%;max-width:100%;aspect-ratio:16/9;min-height:200px;margin:0 auto;background:#000;overflow:visible;';
   var iframe = document.createElement('iframe');
   iframe.src = ${JSON.stringify(playerUrl)};
   iframe.allow = 'autoplay; fullscreen; encrypted-media';

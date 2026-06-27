@@ -34,7 +34,7 @@ export function renderPlayerHtml(video, publicUrl) {
 </head>
 <body>
   <div id="stage">
-    <video id="v" playsinline webkit-playsinline preload="metadata"></video>
+    <video id="v" playsinline webkit-playsinline preload="auto"></video>
 
     <!-- Loading circular (anel + % no meio) enquanto o video carrega -->
     <div id="loading" class="loading">
@@ -563,38 +563,56 @@ const PLAYER_JS = `
     window.addEventListener('mouseup', function(){ ovMode=null; });
   }
 
-  // ---------- Loading inteligente (anel + %) ----------
+  // ---------- Loading (aparece UMA vez, some quando ha buffer suficiente) ----------
   var loadEl = document.getElementById('loading');
   var loadPctEl = document.getElementById('loadPct');
   var ringFg = document.querySelector('.ring-fg');
-  var CIRC = 2 * Math.PI * 42; // circunferencia do circulo r=42
-  var loadShown = 0, loadReady = false, loadDone = false;
+  var CIRC = 2 * Math.PI * 42;
+  var loadShown = 0, loadReady = false, loadDone = false, startDone = false;
   function setLoad(p){
     p = Math.max(0, Math.min(100, p));
     loadPctEl.textContent = Math.round(p) + '%';
     if(ringFg) ringFg.style.strokeDashoffset = CIRC * (1 - p/100);
   }
+  // chamado quando buffer esta pronto — some o loading E entao inicia o player
   function finishLoad(){
     if(loadDone) return; loadDone = true;
     if(loadRaf) cancelAnimationFrame(loadRaf);
     setLoad(100);
-    setTimeout(function(){ loadEl.classList.add('done'); setTimeout(function(){ loadEl.style.display='none'; }, 400); }, 200);
+    setTimeout(function(){
+      loadEl.classList.add('done');
+      setTimeout(function(){
+        loadEl.style.display = 'none';
+        // inicia o player SO APOS o loading sumir completamente
+        if(!startDone){ startDone=true; applyVisual(); checkResumeOnLoad(); if(!resumeEl.classList.contains('show')) start(); poke(); }
+      }, 400);
+    }, 150);
   }
   var loadRaf = null;
   function loadTick(){
     if(loadDone) return;
-    var target = loadReady ? 100 : 90;
-    var speed = loadReady ? 0.35 : 0.06;
-    loadShown += (target - loadShown) * speed + 0.4;
-    if(loadShown >= 100) loadShown = 100;
+    var target = loadReady ? 100 : 88;
+    var speed = loadReady ? 0.3 : 0.055;
+    loadShown += (target - loadShown) * speed + 0.3;
+    if(loadShown > 100) loadShown = 100;
     setLoad(loadShown);
     if(loadReady && loadShown >= 99.5){ finishLoad(); return; }
     loadRaf = requestAnimationFrame(loadTick);
   }
-  // so libera o loading quando tiver buffer suficiente (evita recarregar varias vezes)
+  function checkBuffer(){
+    try{
+      if(v.buffered.length && v.duration > 0){
+        // libera quando tiver 5s em buffer OU 15% do video (o que vier primeiro)
+        var end = v.buffered.end(v.buffered.length - 1);
+        if(end >= Math.min(5, v.duration * 0.15)) return true;
+      }
+    }catch(e){}
+    return false;
+  }
+  v.addEventListener('progress', function(){ if(!loadReady && checkBuffer()) loadReady = true; });
   v.addEventListener('canplaythrough', function(){ loadReady = true; });
-  // fallback: se canplaythrough demorar demais (ex: conexao lenta), libera apos 10s
-  setTimeout(function(){ loadReady = true; }, 10000);
+  // fallback: 12s no maximo esperando
+  setTimeout(function(){ loadReady = true; }, 12000);
 
   // ---------- Tela "Continuar / Recomecar" (salva progresso no localStorage) ----------
   var resumeEl = document.getElementById('resume');
@@ -639,20 +657,10 @@ const PLAYER_JS = `
   }
 
   // init
-  setLoad(0);
-  requestAnimationFrame(loadTick);
-  loadSource();
-  // aguarda buffer suficiente antes de iniciar (evita loading multiplas vezes)
-  var metaReady = false, bufferReady = false;
-  function tryStart(){
-    if(!metaReady || !bufferReady) return;
-    applyVisual(); checkResumeOnLoad(); if(!resumeEl.classList.contains('show')) start(); poke();
-  }
-  v.addEventListener('loadedmetadata', function(){ metaReady = true; applyVisual(); tryStart(); });
-  v.addEventListener('canplaythrough', function(){ bufferReady = true; tryStart(); });
-  // fallback: inicia mesmo sem buffer completo apos 10s
-  setTimeout(function(){ bufferReady = true; tryStart(); }, 10000);
   applyVisual();
+  setLoad(0);
+  loadRaf = requestAnimationFrame(loadTick);
+  loadSource();
 })();
 `;
 

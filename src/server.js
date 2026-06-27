@@ -5,7 +5,7 @@ import path from 'node:path';
 import { nanoid } from 'nanoid';
 import { config, ROOT } from './config.js';
 import { db, rowToVideo, mergeSettings, DEFAULT_SETTINGS } from './db.js';
-import { processVideo, HAS_FFMPEG } from './transcode.js';
+import { processVideo, optimizeMp4, HAS_FFMPEG } from './transcode.js';
 import { renderPlayerHtml, renderPlayerScript } from './player.js';
 
 fs.mkdirSync(config.uploadsDir, { recursive: true });
@@ -125,6 +125,19 @@ app.delete('/api/videos/:id', checkAdmin, (req, res) => {
   try { fs.rmSync(path.join(config.mediaDir, req.params.id), { recursive: true, force: true }); } catch {}
   try { if (row.source_file) fs.rmSync(path.join(config.uploadsDir, row.source_file), { force: true }); } catch {}
   res.json({ ok: true });
+});
+
+// Re-otimiza um video JA existente (recomprime + faststart pra carregar rapido)
+app.post('/api/videos/:id/optimize', checkAdmin, (req, res) => {
+  const row = db.prepare('SELECT * FROM videos WHERE id = ?').get(req.params.id);
+  if (!row) return res.status(404).json({ error: 'nao encontrado' });
+  if (!HAS_FFMPEG) return res.status(400).json({ error: 'ffmpeg indisponivel no servidor' });
+  if (!row.source_file) return res.status(400).json({ error: 'sem arquivo de origem' });
+  const inputPath = path.join(config.uploadsDir, row.source_file);
+  if (!fs.existsSync(inputPath)) return res.status(400).json({ error: 'arquivo nao encontrado' });
+  db.prepare("UPDATE videos SET status = 'processing' WHERE id = ?").run(req.params.id);
+  optimizeMp4(req.params.id, inputPath); // roda em background
+  res.json({ ok: true, status: 'processing' });
 });
 
 // Metricas de retencao agregadas

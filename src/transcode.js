@@ -29,9 +29,15 @@ function probeDuration(inputPath) {
 }
 
 /**
- * Converte um MP4 em HLS multi-qualidade (360p / 720p).
- * Roda em background; atualiza o status no banco quando termina.
- * Se nao houver FFmpeg, marca como 'ready' usando o MP4 direto.
+ * OTIMIZA o video pra carregar o mais rapido possivel (estilo VTurb):
+ *  - re-encoda em H.264 (libx264) compativel com todo navegador (yuv420p)
+ *  - CRF 26: bom equilibrio qualidade/tamanho (reduz drasticamente o peso)
+ *  - limita a 1080p (nao faz sentido VSL maior; corta peso)
+ *  - audio AAC 128k
+ *  - -movflags +faststart: move o indice (moov atom) pro INICIO do arquivo
+ *    -> o navegador comeca a tocar quase instantaneo, sem baixar tudo antes.
+ * Roda em background; ao terminar, o MP4 otimizado substitui o original servido.
+ * Se nao houver FFmpeg, serve o MP4 original direto.
  */
 export function processVideo(videoId, inputPath) {
   const outDir = path.join(config.mediaDir, videoId);
@@ -56,43 +62,45 @@ export function processVideo(videoId, inputPath) {
   }
 
   if (!HAS_FFMPEG) {
-    // Sem FFmpeg: serve o MP4 original. Player faz fallback automatico.
     db.prepare("UPDATE videos SET status = 'ready', hls_path = NULL WHERE id = ?").run(videoId);
     return;
   }
 
   db.prepare("UPDATE videos SET status = 'processing' WHERE id = ?").run(videoId);
+  optimizeMp4(videoId, inputPath);
+}
 
-  // HLS adaptativo simples: duas renditions.
+/**
+ * Recomprime um MP4 com faststart e o deixa como fonte servida (/raw).
+ * Substitui o arquivo original no uploadsDir pra economizar espaco.
+ */
+export function optimizeMp4(videoId, inputPath) {
+  // nome unico (timestamp) evita colisao ao re-otimizar um video ja otimizado
+  const optName = `${videoId}_${Date.now()}_opt.mp4`;
+  const optPath = path.join(config.uploadsDir, optName);
+
   const args = [
     '-y', '-i', inputPath,
-    // 720p
     '-map', '0:v:0', '-map', '0:a:0?',
-    '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '23',
-    '-vf', "scale=w=1280:h=720:force_original_aspect_ratio=decrease",
-    '-c:a', 'aac', '-b:a', '128k',
-    '-hls_time', '6', '-hls_playlist_type', 'vod',
-    '-hls_segment_filename', path.join(outDir, '720p_%03d.ts'),
-    path.join(outDir, '720p.m3u8'),
+    '-c:v', 'libx264', '-preset', 'medium', '-crf', '26',
+    '-pix_fmt', 'yuv420p',                      // compat. maxima (iOS/Safari)
+    '-vf', "scale='min(1920,iw)':'min(1080,ih)':force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2",
+    '-c:a', 'aac', '-b:a', '128k', '-ac', '2',
+    '-movflags', '+faststart',                  // <- chave: toca rapido
+    optPath,
   ];
 
   const proc = spawn('ffmpeg', args, { stdio: 'ignore' });
 
   proc.on('exit', (code) => {
-    if (code === 0) {
-      // master playlist apontando pra rendition
-      const master = [
-        '#EXTM3U',
-        '#EXT-X-VERSION:3',
-        '#EXT-X-STREAM-INF:BANDWIDTH=2500000,RESOLUTION=1280x720',
-        '720p.m3u8',
-        '',
-      ].join('\n');
-      fs.writeFileSync(path.join(outDir, 'master.m3u8'), master);
-      db.prepare("UPDATE videos SET status = 'ready', hls_path = ? WHERE id = ?")
-        .run(`${videoId}/master.m3u8`, videoId);
+    if (code === 0 && fs.existsSync(optPath) && fs.statSync(optPath).size > 0) {
+      // troca a fonte servida pelo otimizado e apaga o original pesado
+      db.prepare("UPDATE videos SET status = 'ready', source_file = ?, hls_path = NULL WHERE id = ?")
+        .run(optName, videoId);
+      try { if (inputPath !== optPath) fs.rmSync(inputPath, { force: true }); } catch { /* ignore */ }
     } else {
-      db.prepare("UPDATE videos SET status = 'error' WHERE id = ?").run(videoId);
+      // falhou a otimizacao: serve o original mesmo assim (nao trava o usuario)
+      db.prepare("UPDATE videos SET status = 'ready', hls_path = NULL WHERE id = ?").run(videoId);
     }
   });
 }

@@ -77,6 +77,9 @@ label{display:block;font-size:13px;color:var(--mut);margin:14px 0 5px}
 .btn-icon-del{background:transparent;border:1px solid var(--line);border-radius:8px;cursor:pointer;font-size:15px;padding:8px 11px;color:var(--mut);transition:.15s;flex:none}
 .btn-icon-del:hover{border-color:#fca5a5;background:#fef2f2;color:#dc2626}
 html[data-theme="dark"] .btn-icon-del:hover{background:#3a1414;border-color:#5a2020;color:#f06a6a}
+.btn-icon-opt{background:transparent;border:1px solid var(--line);border-radius:8px;cursor:pointer;font-size:15px;padding:8px 11px;color:var(--mut);transition:.15s;flex:none}
+.btn-icon-opt:hover{border-color:#fcd34d;background:#fffbeb;color:#d97706}
+html[data-theme="dark"] .btn-icon-opt:hover{background:#3a3014;border-color:#5a4a20;color:#f0c050}
 .list-tools{display:flex;gap:8px;align-items:center}
 .list-tools input{width:200px;padding:8px 12px}
 .list-tools select{width:auto;padding:8px 12px}

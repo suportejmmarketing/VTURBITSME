@@ -77,6 +77,7 @@ function renderList(){
       <div class="meta"><b>${escapeHtml(v.title)}</b><small>${new Date(v.created_at).toLocaleDateString('pt-BR')} · ▶ ${v.plays||0} plays</small></div>
       <span class="pill ${v.status}">${v.status}</span>
       <button class="btn btn-ghost" onclick="openEditor('${v.id}')">Personalizar</button>
+      <button class="btn-icon-opt" title="Otimizar (carregar mais rápido)" onclick="optimizeVideo('${v.id}')">⚡</button>
       <button class="btn-icon-del" title="Excluir" onclick="deleteFromList('${v.id}','${escapeAttr(v.title)}')">🗑</button>
     </div>`;
   }).join('');
@@ -90,6 +91,40 @@ async function deleteFromList(id, title){
     if(res.ok){ VIDEOS = VIDEOS.filter(v=>v.id!==id); renderList(); toast('Vídeo excluído'); }
     else toast('Erro ao excluir');
   }catch{ toast('Erro ao excluir'); }
+}
+
+// otimiza um video existente (recomprime + faststart pra carregar rapido)
+async function optimizeVideo(id){
+  if(!confirm('Otimizar este vídeo? Ele será recomprimido pra carregar mais rápido (pode levar alguns minutos).')) return;
+  try{
+    const res = await api('/api/videos/'+id+'/optimize', {method:'POST'});
+    if(res.ok){
+      toast('⚙️ Otimizando... aguarde uns minutos e recarregue');
+      // atualiza o status na lista periodicamente
+      var v = VIDEOS.find(x=>x.id===id); if(v){ v.status='processing'; renderList(); }
+      pollStatus(id);
+    } else {
+      const e = await res.json().catch(()=>({})); toast('Erro: '+(e.error||'falhou'));
+    }
+  }catch{ toast('Erro ao otimizar'); }
+}
+
+// verifica o status ate ficar 'ready'
+function pollStatus(id){
+  let tries = 0;
+  const t = setInterval(async ()=>{
+    tries++;
+    try{
+      const r = await api('/api/videos/'+id);
+      if(r.ok){
+        const v = await r.json();
+        const idx = VIDEOS.findIndex(x=>x.id===id);
+        if(idx>=0){ VIDEOS[idx].status = v.status; renderList(); }
+        if(v.status==='ready'){ clearInterval(t); toast('✅ Vídeo otimizado!'); }
+      }
+    }catch{}
+    if(tries>120){ clearInterval(t); } // desiste apos ~10min
+  }, 5000);
 }
 
 // ================= UPLOAD =================

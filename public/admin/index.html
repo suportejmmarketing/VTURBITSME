@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>VTurb-Self · Painel</title>
-<link rel="stylesheet" href="style.css?v=15">
+<link rel="stylesheet" href="style.css?v=16">
 </head>
 <body>
 <!-- LOGIN -->
@@ -105,10 +105,18 @@
       <!-- INSTALAR -->
       <section class="tabpane" data-pane="install">
         <h4>📋 Código de instalação</h4>
-        <p class="muted">Cole no seu site, página de vendas ou checkout (GGCheckout):</p>
+        <p class="muted">Cole no seu site, página de vendas ou checkout. <b>Funciona em qualquer plataforma.</b></p>
+
+        <label class="install-label">⭐ Recomendado — script de 1 linha</label>
         <div class="code" id="embedCode"></div>
-        <button class="btn btn-ghost full" onclick="copyEmbed()">Copiar código</button>
-        <p class="muted sm-note">⚠️ Funciona online só depois de hospedar (Hostinger). Local serve pra testar.</p>
+        <button class="btn btn-ghost full" onclick="copyEmbed()">Copiar script</button>
+
+        <label class="install-label" style="margin-top:18px">🧩 Alternativa — iframe direto</label>
+        <p class="muted sm-note">Use este se a plataforma recarregar o vídeo (builders que re-renderizam). Cole no bloco de HTML.</p>
+        <div class="code" id="iframeCode"></div>
+        <button class="btn btn-ghost full" onclick="copyIframe()">Copiar iframe</button>
+
+        <p class="muted sm-note">✅ A proporção é detectada automaticamente (sem barras pretas). ⚠️ Funciona online após hospedar.</p>
       </section>
 
       <!-- PLAYER -->
@@ -212,6 +220,6 @@
 </div>
 
 <div id="toast" class="toast"></div>
-<script src="app.js?v=15"></script>
+<script src="app.js?v=16"></script>
 </body>
 </html>

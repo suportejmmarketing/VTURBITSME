@@ -677,21 +677,50 @@ const PLAYER_JS = `
 `;
 
 /**
- * Script de embed de 1 linha.
+ * Script de embed de 1 linha — IDEMPOTENTE e a prova de qualquer plataforma.
+ * - Nao duplica nem recarrega se o script rodar varias vezes (builders/re-render).
+ * - Usa a proporcao REAL do video (sem barras pretas / sem cortar).
+ * - Vertical (VSL mobile) ganha largura limitada e centralizada.
  */
 export function renderPlayerScript(video, publicUrl) {
   const playerUrl = `${publicUrl}/p/${video.id}`;
+  const domId = `vturb-${video.id}`;
+  const w = video.vwidth || 0, h = video.vheight || 0;
+  const ar = (w && h) ? `${w}/${h}` : '16/9';
+  const vertical = h > w && w > 0;
+  const maxW = vertical ? '405px' : '760px';
   return `(function(){
+  var DOM_ID = ${JSON.stringify(domId)};
+  // idempotente: se o player ja existe na pagina, nao cria de novo
+  // (impede duplicar / recarregar quando builders re-executam o script)
+  if (document.getElementById(DOM_ID)) return;
   var current = document.currentScript;
   var box = document.createElement('div');
-  box.style.cssText = 'position:relative;width:100%;max-width:100%;aspect-ratio:16/9;min-height:200px;margin:0 auto;background:#000;overflow:visible;';
+  box.id = DOM_ID;
+  box.style.cssText = 'position:relative;width:100%;max-width:${maxW};aspect-ratio:${ar};margin:0 auto;background:#000;';
   var iframe = document.createElement('iframe');
   iframe.src = ${JSON.stringify(playerUrl)};
   iframe.allow = 'autoplay; fullscreen; encrypted-media';
   iframe.setAttribute('allowfullscreen','');
+  iframe.setAttribute('loading','eager');
   iframe.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:0;';
   box.appendChild(iframe);
   if (current && current.parentNode) current.parentNode.insertBefore(box, current);
   else document.body.appendChild(box);
 })();`;
+}
+
+/**
+ * Bloco iframe estatico (alternativa pra colar direto no HTML).
+ * Mais estavel em builders que re-executam <script>.
+ */
+export function renderPlayerIframe(video, publicUrl) {
+  const playerUrl = `${publicUrl}/p/${video.id}`;
+  const w = video.vwidth || 0, h = video.vheight || 0;
+  const ar = (w && h) ? `${w}/${h}` : '16/9';
+  const vertical = h > w && w > 0;
+  const maxW = vertical ? '405px' : '760px';
+  return `<div style="position:relative;width:100%;max-width:${maxW};aspect-ratio:${ar};margin:0 auto;background:#000;">
+  <iframe src="${playerUrl}" style="position:absolute;inset:0;width:100%;height:100%;border:0;" allow="autoplay; fullscreen; encrypted-media" allowfullscreen loading="eager"></iframe>
+</div>`;
 }

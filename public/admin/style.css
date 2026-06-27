@@ -80,6 +80,7 @@ html[data-theme="dark"] .btn-icon-del:hover{background:#3a1414;border-color:#5a2
 .btn-icon-opt{background:transparent;border:1px solid var(--line);border-radius:8px;cursor:pointer;font-size:15px;padding:8px 11px;color:var(--mut);transition:.15s;flex:none}
 .btn-icon-opt:hover{border-color:#fcd34d;background:#fffbeb;color:#d97706}
 html[data-theme="dark"] .btn-icon-opt:hover{background:#3a3014;border-color:#5a4a20;color:#f0c050}
+.install-label{display:block;font-weight:700;font-size:13px;margin:0 0 6px;color:var(--fg)}
 .list-tools{display:flex;gap:8px;align-items:center}
 .list-tools input{width:200px;padding:8px 12px}
 .list-tools select{width:auto;padding:8px 12px}

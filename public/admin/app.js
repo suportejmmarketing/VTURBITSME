@@ -148,6 +148,7 @@ async function openEditor(id){
   $('app').classList.add('hidden'); $('editor').classList.remove('hidden');
   $('edTitle').textContent = CURRENT.title;
   $('embedCode').textContent = `<script src="${INFO.publicUrl}/e/${CURRENT.id}.js"><\/script>`;
+  buildIframeCode();
   DEVICE='desktop'; updateDeviceUI();
   renderTemplates();
   bindControls();
@@ -298,6 +299,21 @@ async function loadStats(id){
 }
 
 function copyEmbed(){ navigator.clipboard.writeText($('embedCode').textContent).then(()=>toast('Código copiado!')); }
+function copyIframe(){ navigator.clipboard.writeText($('iframeCode').textContent).then(()=>toast('Código copiado!')); }
+
+// monta o iframe direto com a proporcao REAL do video (sem barras pretas)
+function buildIframeCode(){
+  const el = $('iframeCode'); if(!el) return;
+  const base = INFO.publicUrl;
+  const w = CURRENT.vwidth||0, h = CURRENT.vheight||0;
+  const ar = (w&&h) ? `${w}/${h}` : '16/9';
+  const vertical = h>w && w>0;
+  const maxW = vertical ? '405px' : '760px';
+  el.textContent =
+`<div style="position:relative;width:100%;max-width:${maxW};aspect-ratio:${ar};margin:0 auto;background:#000;">
+  <iframe src="${base}/p/${CURRENT.id}" style="position:absolute;inset:0;width:100%;height:100%;border:0;" allow="autoplay; fullscreen; encrypted-media" allowfullscreen loading="eager"></iframe>
+</div>`;
+}
 function escapeHtml(s){ return String(s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c])); }
 function escapeAttr(s){ return String(s).replace(/['"\\]/g,'').replace(/[<>&]/g,''); }
 

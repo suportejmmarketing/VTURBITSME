@@ -28,6 +28,19 @@ function probeDuration(inputPath) {
   }
 }
 
+// Le as dimensoes (largura x altura) do video -> usado pra aspect-ratio do embed
+function probeSize(inputPath) {
+  try {
+    const r = spawnSync('ffprobe', [
+      '-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=width,height',
+      '-of', 'csv=s=x:p=0', inputPath,
+    ], { encoding: 'utf8' });
+    const m = /(\d+)x(\d+)/.exec((r.stdout || '').trim());
+    if (m) return { w: parseInt(m[1], 10), h: parseInt(m[2], 10) };
+  } catch { /* ignore */ }
+  return { w: 0, h: 0 };
+}
+
 /**
  * OTIMIZA o video pra carregar o mais rapido possivel (estilo VTurb):
  *  - re-encoda em H.264 (libx264) compativel com todo navegador (yuv420p)
@@ -46,6 +59,12 @@ export function processVideo(videoId, inputPath) {
   const duration = probeDuration(inputPath);
   if (duration) {
     db.prepare('UPDATE videos SET duration = ? WHERE id = ?').run(duration, videoId);
+  }
+
+  // detecta a proporcao do video (pro embed nao cortar / nao deixar barras pretas)
+  const size = probeSize(inputPath);
+  if (size.w && size.h) {
+    db.prepare('UPDATE videos SET vwidth = ?, vheight = ? WHERE id = ?').run(size.w, size.h, videoId);
   }
 
   // Gera thumbnail (1 frame em ~2s) se houver FFmpeg
@@ -75,6 +94,11 @@ export function processVideo(videoId, inputPath) {
  * Substitui o arquivo original no uploadsDir pra economizar espaco.
  */
 export function optimizeMp4(videoId, inputPath) {
+  // detecta a proporcao (pro embed) caso ainda nao tenha
+  const size = probeSize(inputPath);
+  if (size.w && size.h) {
+    db.prepare('UPDATE videos SET vwidth = ?, vheight = ? WHERE id = ?').run(size.w, size.h, videoId);
+  }
   // nome unico (timestamp) evita colisao ao re-otimizar um video ja otimizado
   const optName = `${videoId}_${Date.now()}_opt.mp4`;
   const optPath = path.join(config.uploadsDir, optName);

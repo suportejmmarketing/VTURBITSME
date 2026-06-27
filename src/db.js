@@ -32,6 +32,11 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_events_video ON events(video_id);
 `);
 
+// migracoes idempotentes (adiciona colunas novas em bancos ja existentes)
+for (const col of ['vwidth INTEGER DEFAULT 0', 'vheight INTEGER DEFAULT 0']) {
+  try { db.exec(`ALTER TABLE videos ADD COLUMN ${col}`); } catch { /* ja existe */ }
+}
+
 // Config padrao do player (espelha as opcoes do VTurb)
 export const DEFAULT_SETTINGS = {
   // Tema do player

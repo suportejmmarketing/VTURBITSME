@@ -139,10 +139,18 @@ app.get('/api/videos/:id/stats', checkAdmin, (req, res) => {
 //  EMBED / PLAYER PUBLICO  (sem auth)
 // ====================================================================
 
+// nunca cacheia o player (garante que o navegador sempre pega a versao nova)
+function noCache(res) {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+}
+
 // Script de 1 linha: <script src=".../e/<id>.js"></script>
 app.get('/e/:id.js', (req, res) => {
   const row = db.prepare('SELECT * FROM videos WHERE id = ?').get(req.params.id);
   if (!row) return res.status(404).type('js').send('console.error("[vturb] video nao encontrado")');
+  noCache(res);
   res.type('application/javascript').send(renderPlayerScript(rowToVideo(row), baseUrl(req)));
 });
 
@@ -150,6 +158,7 @@ app.get('/e/:id.js', (req, res) => {
 app.get('/p/:id', (req, res) => {
   const row = db.prepare('SELECT * FROM videos WHERE id = ?').get(req.params.id);
   if (!row) return res.status(404).send('Video nao encontrado');
+  noCache(res);
   res.type('html').send(renderPlayerHtml(rowToVideo(row), baseUrl(req)));
 });
 

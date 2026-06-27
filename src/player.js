@@ -360,10 +360,39 @@ const PLAYER_JS = `
   function isMobile(){ return stage.offsetWidth < 640; }
 
   // ---------- fonte ----------
+  // Estrategia DEFINITIVA: baixa o MP4 INTEIRO (fetch + stream) mostrando progresso
+  // REAL no anel. Ao terminar, toca via blob em memoria -> NUNCA mais faz request,
+  // logo o loading aparece UMA unica vez e o video nunca re-bufferiza.
   function loadSource(){
-    if(CFG.hls && v.canPlayType('application/vnd.apple.mpegurl')){ v.src=CFG.hls; return; }
-    if(CFG.hls && window.Hls && window.Hls.isSupported()){ var h=new Hls(); h.loadSource(CFG.hls); h.attachMedia(v); return; }
-    v.src = CFG.mp4;
+    // HLS usa streaming nativo (nao da pra baixar como blob) -> modo streaming
+    if(CFG.hls && v.canPlayType('application/vnd.apple.mpegurl')){ v.src=CFG.hls; useStreamingLoad(); return; }
+    if(CFG.hls && window.Hls && window.Hls.isSupported()){ var h=new Hls(); h.loadSource(CFG.hls); h.attachMedia(v); useStreamingLoad(); return; }
+    // MP4: download completo com progresso real
+    downloadAndPlay(CFG.mp4);
+  }
+
+  function downloadAndPlay(url){
+    if(!window.fetch || !window.ReadableStream){ v.src = url; useStreamingLoad(); return; } // navegador antigo
+    fetch(url).then(function(resp){
+      if(!resp.ok || !resp.body) throw new Error('sem stream');
+      var total = parseInt(resp.headers.get('Content-Length') || '0', 10);
+      var reader = resp.body.getReader();
+      var chunks = [], received = 0;
+      function pump(){
+        return reader.read().then(function(res){
+          if(res.done){
+            var blob = new Blob(chunks, { type: 'video/mp4' });
+            downloadComplete(URL.createObjectURL(blob));
+            return;
+          }
+          chunks.push(res.value); received += res.value.length;
+          // progresso REAL (com Content-Length) ou estimado por bytes
+          setDownloadPct(total ? (received / total) * 100 : Math.min(92, received / 50000));
+          return pump();
+        });
+      }
+      return pump();
+    }).catch(function(){ v.src = url; useStreamingLoad(); }); // fallback streaming direto
   }
 
   // ---------- autoplay smart ----------
@@ -563,52 +592,65 @@ const PLAYER_JS = `
     window.addEventListener('mouseup', function(){ ovMode=null; });
   }
 
-  // ---------- Loading (aparece UMA vez, some ao ter buffer; nunca reinicia) ----------
+  // ---------- Loading (UMA vez, definitivo) ----------
   var loadEl = document.getElementById('loading');
   var loadPctEl = document.getElementById('loadPct');
   var ringFg = document.querySelector('.ring-fg');
   var DASH = 264; // deve bater com stroke-dasharray no CSS
-  var loadShown = 0, loadReady = false, loadDone = false, startDone = false;
+  var shownPct = 0, loadDone = false, playerStarted = false;
   function setLoad(p){
     p = Math.max(0, Math.min(100, p));
+    shownPct = p;
     loadPctEl.textContent = Math.round(p) + '%';
     if(ringFg) ringFg.style.strokeDashoffset = DASH * (1 - p / 100);
   }
-  function finishLoad(){
-    if(loadDone) return; loadDone = true;
-    if(loadRaf) cancelAnimationFrame(loadRaf);
+  // progresso REAL do download (modo blob). Nunca volta atras.
+  function setDownloadPct(p){ if(p > shownPct) setLoad(p); }
+
+  // download terminou: video 100% em memoria -> toca via blob (nunca recarrega)
+  function downloadComplete(blobUrl){
     setLoad(100);
+    v.src = blobUrl;
+    // quando o blob estiver pronto, inicia o player UMA vez e some o loading
+    var go = function(){
+      if(playerStarted) return; playerStarted = true;
+      applyVisual(); checkResumeOnLoad();
+      if(!resumeEl.classList.contains('show')) start();
+      poke();
+      hideLoadingOverlay();
+    };
+    if(v.readyState >= 1) go();
+    else v.addEventListener('loadedmetadata', go, { once: true });
+  }
+  function hideLoadingOverlay(){
+    if(loadDone) return; loadDone = true;
     setTimeout(function(){
       loadEl.classList.add('done');
       setTimeout(function(){ loadEl.style.display = 'none'; }, 400);
-    }, 150);
+    }, 120);
   }
+
+  // MODO STREAMING (HLS / fallback): anima devagar e some no evento 'playing'
   var loadRaf = null;
-  function loadTick(){
-    if(loadDone) return;
-    if(loadReady){
-      loadShown += (100 - loadShown) * 0.22 + 1.2;
-    } else {
-      // avanca devagar e continuo — nunca para, nunca volta atras
-      loadShown += (93 - loadShown) * 0.006 + 0.1;
-    }
-    if(loadShown > 100) loadShown = 100;
-    setLoad(loadShown);
-    if(loadReady && loadShown >= 99.5){ finishLoad(); return; }
-    loadRaf = requestAnimationFrame(loadTick);
+  function useStreamingLoad(){
+    var ready = false;
+    v.addEventListener('playing', function(){ ready = true; }, { once: true });
+    setTimeout(function(){ ready = true; }, 20000); // fallback conexao lenta
+    var playerStartedS = false;
+    v.addEventListener('loadedmetadata', function(){
+      if(playerStartedS) return; playerStartedS = true; playerStarted = true;
+      applyVisual(); checkResumeOnLoad();
+      if(!resumeEl.classList.contains('show')) start();
+      poke();
+    });
+    (function tick(){
+      if(loadDone) return;
+      if(ready){ setLoad(shownPct + (100 - shownPct) * 0.22 + 1.2); }
+      else { setLoad(shownPct + (93 - shownPct) * 0.006 + 0.1); }
+      if(ready && shownPct >= 99.5){ hideLoadingOverlay(); return; }
+      loadRaf = requestAnimationFrame(tick);
+    })();
   }
-  // libera o loading so quando o video REALMENTE comecou a tocar (sem falsos positivos)
-  v.addEventListener('playing', function(){ loadReady = true; });
-  // fallback: 20s (conexao muito lenta)
-  setTimeout(function(){ loadReady = true; }, 20000);
-  // inicia tentativa de play assim que metadados estiverem prontos
-  var playerStarted = false;
-  v.addEventListener('loadedmetadata', function(){
-    if(playerStarted) return; playerStarted = true;
-    applyVisual(); checkResumeOnLoad();
-    if(!resumeEl.classList.contains('show')) start();
-    poke();
-  });
 
   // ---------- Tela "Continuar / Recomecar" (salva progresso no localStorage) ----------
   var resumeEl = document.getElementById('resume');
@@ -655,8 +697,7 @@ const PLAYER_JS = `
   // init
   applyVisual();
   setLoad(0);
-  loadRaf = requestAnimationFrame(loadTick);
-  loadSource();
+  loadSource(); // dispara download (blob) ou streaming; o loading e controlado la dentro
 })();
 `;
 

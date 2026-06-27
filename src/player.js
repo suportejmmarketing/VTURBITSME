@@ -34,7 +34,7 @@ export function renderPlayerHtml(video, publicUrl) {
 </head>
 <body>
   <div id="stage">
-    <video id="v" playsinline webkit-playsinline preload="auto" fetchpriority="high"></video>
+    <video id="v" playsinline webkit-playsinline preload="metadata"></video>
 
     <!-- Loading circular (anel + % no meio) enquanto o video carrega -->
     <div id="loading" class="loading">

@@ -11,6 +11,8 @@ services:
       MAX_UPLOAD_MB: "2000"
     volumes:
       - ./data:/app/data    # videos e banco persistem aqui (fora do container)
+      - ./src:/app/src      # CODIGO montado do host -> update sem rebuild (cp + restart aplica na hora)
+      - ./public:/app/public
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.vturb.rule=Host(`video.pagmentoprotegido.shop`)"

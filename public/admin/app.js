@@ -168,6 +168,7 @@ function refreshDynamicUI(){
   const to = $('trackOpVal'); if(to) to.textContent = Math.round((s.progressBar.trackOpacity??0.25)*100)+'%';
   const bo = $('barOptions'); if(bo) bo.style.display = (s.progressBar.style==='hidden') ? 'none' : '';
   const ov = $('ovOpVal'); if(ov) ov.textContent = Math.round((s.overlay.bgOpacity??0.82)*100)+'%';
+  const fs = $('ovFsVal'); if(fs) fs.textContent = (s.overlay.fontSize||16);
   // sincroniza slider <-> campo numerico da altura
   const h = s.progressBar.height||4;
   if($('barHRange')) $('barHRange').value = h;

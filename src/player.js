@@ -139,9 +139,9 @@ html[data-theme="light"]{--ctl-bg:rgba(255,255,255,.88);--ctl-fg:#10131a;--track
   container-type:size}
 .bigplay.pulse .obox{animation:opulse 1.6s ease-in-out infinite}
 @keyframes opulse{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}
-/* fonte escala pelo tamanho da CAIXA (cqi/cqh), nao da viewport -> nunca vaza */
+/* fonte escala pelo tamanho da CAIXA; --ov-fs e sobrescrito pelo JS via applyVisual */
 .o-top,.o-bot{font-weight:800;line-height:1.1;width:100%;text-shadow:0 2px 6px rgba(0,0,0,.25);
-  font-size:clamp(11px,min(11cqi,26cqh),30px);overflow:hidden;text-overflow:ellipsis;flex:none}
+  font-size:var(--ov-fs,16px);overflow:hidden;text-overflow:ellipsis;flex:none}
 .o-ic{flex:1 1 auto;min-height:24px;display:flex;align-items:center;justify-content:center;width:100%}
 .o-ic:empty{display:none}
 .o-ic svg{height:min(100%,30cqh);max-height:170px;width:auto;max-width:70%;fill:currentColor;filter:drop-shadow(0 4px 14px rgba(0,0,0,.35))}
@@ -326,6 +326,7 @@ const PLAYER_JS = `
     }
     obox.style.color = ov.textColor;
     obox.style.background = hexToRgba(ov.bgColor||'#1f9d6b', ov.bgOpacity==null?0.82:ov.bgOpacity);
+    obox.style.setProperty('--ov-fs', (ov.fontSize||16)+'px');
     var op = isMobile() ? ov.mobile : ov.desktop;
     obox.style.left = op.x+'%'; obox.style.top = op.y+'%';
     obox.style.width = op.w+'%'; obox.style.height = op.h+'%';
@@ -590,11 +591,10 @@ const PLAYER_JS = `
     if(loadReady && loadShown >= 99.5){ finishLoad(); return; }
     loadRaf = requestAnimationFrame(loadTick);
   }
-  // video pronto pra tocar -> permite completar 100%
-  v.addEventListener('canplay', function(){ loadReady = true; });
-  v.addEventListener('loadeddata', function(){ loadReady = true; });
-  // fallback: se demorar demais, libera mesmo assim
-  setTimeout(function(){ loadReady = true; }, 8000);
+  // so libera o loading quando tiver buffer suficiente (evita recarregar varias vezes)
+  v.addEventListener('canplaythrough', function(){ loadReady = true; });
+  // fallback: se canplaythrough demorar demais (ex: conexao lenta), libera apos 10s
+  setTimeout(function(){ loadReady = true; }, 10000);
 
   // ---------- Tela "Continuar / Recomecar" (salva progresso no localStorage) ----------
   var resumeEl = document.getElementById('resume');
@@ -642,7 +642,16 @@ const PLAYER_JS = `
   setLoad(0);
   requestAnimationFrame(loadTick);
   loadSource();
-  v.addEventListener('loadedmetadata', function(){ applyVisual(); checkResumeOnLoad(); if(!resumeEl.classList.contains('show')) start(); poke(); });
+  // aguarda buffer suficiente antes de iniciar (evita loading multiplas vezes)
+  var metaReady = false, bufferReady = false;
+  function tryStart(){
+    if(!metaReady || !bufferReady) return;
+    applyVisual(); checkResumeOnLoad(); if(!resumeEl.classList.contains('show')) start(); poke();
+  }
+  v.addEventListener('loadedmetadata', function(){ metaReady = true; applyVisual(); tryStart(); });
+  v.addEventListener('canplaythrough', function(){ bufferReady = true; tryStart(); });
+  // fallback: inicia mesmo sem buffer completo apos 10s
+  setTimeout(function(){ bufferReady = true; tryStart(); }, 10000);
   applyVisual();
 })();
 `;

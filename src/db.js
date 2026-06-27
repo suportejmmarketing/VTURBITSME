@@ -52,6 +52,7 @@ export const DEFAULT_SETTINGS = {
     icon: 'video-muted',     // video-muted | sound-muted | play | none
     topText: 'Seu vídeo já começou',
     bottomText: 'Clique para ouvir',
+    fontSize: 16,              // tamanho base da fonte em px (escala com a caixa)
     textColor: '#ffffff',
     bgColor: '#1f9d6b',
     bgOpacity: 0.82,

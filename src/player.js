@@ -182,7 +182,7 @@ html[data-theme="light"]{--ctl-bg:rgba(255,255,255,.88);--ctl-fg:#10131a;--track
 .ring svg{width:100%;height:100%;transform:rotate(-90deg)}
 .ring-bg{fill:none;stroke:rgba(255,255,255,.12);stroke-width:6}
 .ring-fg{fill:none;stroke:#e01212;stroke-width:6;stroke-linecap:round;
-  stroke-dasharray:264;stroke-dashoffset:264;transition:stroke-dashoffset .25s ease;
+  stroke-dasharray:264;stroke-dashoffset:264;
   filter:drop-shadow(0 0 6px rgba(224,18,18,.6))}
 .load-pct{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
   color:#fff;font-weight:800;font-size:clamp(13px,3.5cqi,20px)}
@@ -563,18 +563,17 @@ const PLAYER_JS = `
     window.addEventListener('mouseup', function(){ ovMode=null; });
   }
 
-  // ---------- Loading (aparece UMA vez, some quando ha buffer suficiente) ----------
+  // ---------- Loading (aparece UMA vez, some ao ter buffer; nunca reinicia) ----------
   var loadEl = document.getElementById('loading');
   var loadPctEl = document.getElementById('loadPct');
   var ringFg = document.querySelector('.ring-fg');
-  var CIRC = 2 * Math.PI * 42;
+  var DASH = 264; // deve bater com stroke-dasharray no CSS
   var loadShown = 0, loadReady = false, loadDone = false, startDone = false;
   function setLoad(p){
     p = Math.max(0, Math.min(100, p));
     loadPctEl.textContent = Math.round(p) + '%';
-    if(ringFg) ringFg.style.strokeDashoffset = CIRC * (1 - p/100);
+    if(ringFg) ringFg.style.strokeDashoffset = DASH * (1 - p / 100);
   }
-  // chamado quando buffer esta pronto — some o loading E entao inicia o player
   function finishLoad(){
     if(loadDone) return; loadDone = true;
     if(loadRaf) cancelAnimationFrame(loadRaf);
@@ -583,7 +582,6 @@ const PLAYER_JS = `
       loadEl.classList.add('done');
       setTimeout(function(){
         loadEl.style.display = 'none';
-        // inicia o player SO APOS o loading sumir completamente
         if(!startDone){ startDone=true; applyVisual(); checkResumeOnLoad(); if(!resumeEl.classList.contains('show')) start(); poke(); }
       }, 400);
     }, 150);
@@ -592,31 +590,20 @@ const PLAYER_JS = `
   function loadTick(){
     if(loadDone) return;
     if(loadReady){
-      // buffer pronto: corre pra 100%
-      loadShown += (100 - loadShown) * 0.25 + 1;
+      loadShown += (100 - loadShown) * 0.22 + 1.2;
     } else {
-      // sempre avanca devagar ate ~92% (nunca trava, da sensacao de progresso)
-      loadShown += (92 - loadShown) * 0.007 + 0.12;
+      // avanca devagar e continuo — nunca para, nunca volta atras
+      loadShown += (93 - loadShown) * 0.006 + 0.1;
     }
     if(loadShown > 100) loadShown = 100;
     setLoad(loadShown);
     if(loadReady && loadShown >= 99.5){ finishLoad(); return; }
     loadRaf = requestAnimationFrame(loadTick);
   }
-  function checkBuffer(){
-    try{
-      if(v.buffered.length && v.duration > 0){
-        // libera quando tiver 5s em buffer OU 15% do video (o que vier primeiro)
-        var end = v.buffered.end(v.buffered.length - 1);
-        if(end >= Math.min(5, v.duration * 0.15)) return true;
-      }
-    }catch(e){}
-    return false;
-  }
-  v.addEventListener('progress', function(){ if(!loadReady && checkBuffer()) loadReady = true; });
-  v.addEventListener('canplaythrough', function(){ loadReady = true; });
-  // fallback: 12s no maximo esperando
-  setTimeout(function(){ loadReady = true; }, 12000);
+  // libera quando canplay (dados suficientes pra comecar)
+  v.addEventListener('canplay', function(){ loadReady = true; });
+  // fallback: 15s
+  setTimeout(function(){ loadReady = true; }, 15000);
 
   // ---------- Tela "Continuar / Recomecar" (salva progresso no localStorage) ----------
   var resumeEl = document.getElementById('resume');

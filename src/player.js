@@ -563,34 +563,42 @@ const PLAYER_JS = `
     window.addEventListener('mouseup', function(){ ovMode=null; });
   }
 
-  // ---------- Loading TEMPORAL (UMA vez, definitivo) ----------
-  // Baseado em TEMPO DECORRIDO (performance.now). Vai de 0 a 100% em ~6 segundos.
-  // Como depende so do relogio (que so avanca) e trava com loadDone, e
-  // MATEMATICAMENTE IMPOSSIVEL voltar atras ou repetir.
+  // ---------- Loading TEMPORAL + ANTI-RELOAD ----------
+  // Loading de 6s baseado no relogio (performance.now) -> impossivel voltar atras.
+  // PROTECAO EXTRA: se o iframe/documento recarregar (ex: iOS Safari descarrega e
+  // recria o iframe por memoria/reflow do site), o sessionStorage detecta que o
+  // loading JA rodou nesta sessao e PULA direto pro video -> nunca repete o anel.
   var loadEl = document.getElementById('loading');
   var loadPctEl = document.getElementById('loadPct');
   var ringFg = document.querySelector('.ring-fg');
   var DASH = 264; // deve bater com stroke-dasharray no CSS
-  var loadDone = false, playerStarted = false, loadRaf = null;
   var LOAD_MS = 6000; // duracao fixa do loading
-  var loadStart = (window.performance && performance.now) ? performance.now() : Date.now();
+  var loadDone = false, playerStarted = false, loadRaf = null, loadStart = 0;
+  var SKEY = 'vt_loaded_' + CFG.id; // marca, por sessao, que o loading ja rodou
   function nowMs(){ return (window.performance && performance.now) ? performance.now() : Date.now(); }
   function setLoad(p){
     p = Math.max(0, Math.min(100, p));
     loadPctEl.textContent = Math.round(p) + '%';
     if(ringFg) ringFg.style.strokeDashoffset = DASH * (1 - p / 100);
   }
+  function startPlayerOnce(){
+    if(playerStarted) return; playerStarted = true;
+    applyVisual(); checkResumeOnLoad();
+    if(!resumeEl.classList.contains('show')) start();
+    poke();
+  }
+  function hideLoadingNow(){
+    loadDone = true;
+    if(loadRaf){ cancelAnimationFrame(loadRaf); loadRaf = null; }
+    loadEl.classList.add('done');
+    setTimeout(function(){ loadEl.style.display = 'none'; }, 400);
+  }
   function finishLoad(){
     if(loadDone) return; loadDone = true;
-    if(loadRaf) cancelAnimationFrame(loadRaf);
+    if(loadRaf){ cancelAnimationFrame(loadRaf); loadRaf = null; }
     setLoad(100);
-    // inicia o player UMA vez (video ja vinha bufferizando via preload)
-    if(!playerStarted){
-      playerStarted = true;
-      applyVisual(); checkResumeOnLoad();
-      if(!resumeEl.classList.contains('show')) start();
-      poke();
-    }
+    try{ sessionStorage.setItem(SKEY, '1'); }catch(e){}
+    startPlayerOnce();
     setTimeout(function(){
       loadEl.classList.add('done');
       setTimeout(function(){ loadEl.style.display = 'none'; }, 400);
@@ -598,10 +606,24 @@ const PLAYER_JS = `
   }
   function loadTick(){
     if(loadDone) return;
-    var elapsed = nowMs() - loadStart;
-    var p = (elapsed / LOAD_MS) * 100;
+    var p = ((nowMs() - loadStart) / LOAD_MS) * 100;
     setLoad(p);
     if(p >= 100){ finishLoad(); return; }
+    loadRaf = requestAnimationFrame(loadTick);
+  }
+  function beginLoading(){
+    // ja carregou nesta sessao (reload do iframe)? pula o loading, vai direto
+    var skip = false;
+    try{ skip = sessionStorage.getItem(SKEY) === '1'; }catch(e){}
+    if(skip){
+      setLoad(100);
+      try{ sessionStorage.setItem(SKEY, '1'); }catch(e){}
+      startPlayerOnce();
+      hideLoadingNow();
+      return;
+    }
+    setLoad(0);
+    loadStart = nowMs();
     loadRaf = requestAnimationFrame(loadTick);
   }
 
@@ -649,10 +671,8 @@ const PLAYER_JS = `
 
   // init
   applyVisual();
-  setLoad(0);
-  loadSource();                         // video comeca a bufferizar via preload="auto"
-  loadStart = nowMs();                  // marca inicio do loading temporal
-  loadRaf = requestAnimationFrame(loadTick);
+  loadSource();      // video bufferiza sob demanda (preload="metadata")
+  beginLoading();    // loading temporal de 6s (ou pula, se for reload do iframe)
 })();
 `;
 

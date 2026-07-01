@@ -687,24 +687,21 @@ const PLAYER_JS = `
 export function renderPlayerScript(video, publicUrl) {
   const playerUrl = `${publicUrl}/p/${video.id}`;
   const domId = `vturb-${video.id}`;
-  const w = video.vwidth || 0, h = video.vheight || 0;
-  const ar = (w && h) ? `${w}/${h}` : '16/9';
-  const vertical = h > w && w > 0;
+  const w = video.vwidth || 16, h = video.vheight || 9;
+  const vertical = h > w;
   const maxW = vertical ? '405px' : '760px';
   return `(function(){
   var DOM_ID = ${JSON.stringify(domId)};
   // idempotente: se o player ja existe na pagina, nao cria de novo
   // (impede duplicar / recarregar quando builders re-executam o script)
   if (document.getElementById(DOM_ID)) return;
+  var VW = ${w}, VH = ${h};
   var current = document.currentScript;
   var box = document.createElement('div');
   box.id = DOM_ID;
-  box.style.cssText = 'position:relative;width:100%;max-width:${maxW};margin:0 auto;background:#000;';
-  // forca a proporcao com !important + height:auto -> resiste a CSS do site/builder
-  // que tente impor altura ou proporcao vertical no container.
-  box.style.setProperty('aspect-ratio', '${ar}', 'important');
-  box.style.setProperty('height', 'auto', 'important');
-  box.style.setProperty('align-self', 'center', 'important'); // nao estica em flex
+  box.style.cssText = 'position:relative;width:100%;max-width:${maxW};margin:0 auto;background:#000;display:block;';
+  box.style.setProperty('aspect-ratio', '${w}/${h}', 'important'); // fallback pro 1o paint
+  box.style.setProperty('align-self', 'center', 'important');      // nao estica em flex
   var iframe = document.createElement('iframe');
   iframe.src = ${JSON.stringify(playerUrl)};
   iframe.allow = 'autoplay; fullscreen; encrypted-media';
@@ -714,6 +711,18 @@ export function renderPlayerScript(video, publicUrl) {
   box.appendChild(iframe);
   if (current && current.parentNode) current.parentNode.insertBefore(box, current);
   else document.body.appendChild(box);
+  // AUTOSSUFICIENTE: calcula a altura pela largura real e aplica em px + important.
+  // Isso IGNORA qualquer CSS do site/container que tente impor altura ou formato
+  // vertical -> o video sempre fica na proporcao correta, sem mexer no site.
+  function fit(){
+    var bw = box.clientWidth || box.offsetWidth || box.getBoundingClientRect().width;
+    if(bw > 0){ box.style.setProperty('height', Math.round(bw * VH / VW) + 'px', 'important'); }
+  }
+  fit();
+  if(window.ResizeObserver){ try{ new ResizeObserver(fit).observe(box); }catch(e){} }
+  window.addEventListener('resize', fit);
+  // recalcula nos primeiros ~3s (layout do site muda ao carregar fontes/imagens)
+  var n=0, iv=setInterval(function(){ fit(); if(++n>20) clearInterval(iv); }, 150);
 })();`;
 }
 

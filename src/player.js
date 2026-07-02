@@ -34,7 +34,7 @@ export function renderPlayerHtml(video, publicUrl) {
 </head>
 <body>
   <div id="stage">
-    <video id="v" playsinline webkit-playsinline preload="metadata"></video>
+    <video id="v" playsinline webkit-playsinline preload="auto"></video>
 
     <!-- Loading circular (anel + % no meio) enquanto o video carrega -->
     <div id="loading" class="loading">
@@ -563,23 +563,41 @@ const PLAYER_JS = `
     window.addEventListener('mouseup', function(){ ovMode=null; });
   }
 
-  // ---------- Loading TEMPORAL + ANTI-RELOAD ----------
-  // Loading de 6s baseado no relogio (performance.now) -> impossivel voltar atras.
-  // PROTECAO EXTRA: se o iframe/documento recarregar (ex: iOS Safari descarrega e
-  // recria o iframe por memoria/reflow do site), o sessionStorage detecta que o
-  // loading JA rodou nesta sessao e PULA direto pro video -> nunca repete o anel.
+  // ---------- Loading POR BUFFER REAL + ANTI-RELOAD ----------
+  // Espera o video ter buffer SUFICIENTE (15% da duracao ou 8s) antes de mostrar a
+  // preview -> a preview nunca trava/pisca por falta de dados. O anel mostra o
+  // progresso REAL do download. Some UMA vez; o resto do video baixa enquanto assiste.
+  // Anti-reload: sessionStorage evita repetir o anel se o site recarregar o iframe.
   var loadEl = document.getElementById('loading');
   var loadPctEl = document.getElementById('loadPct');
   var ringFg = document.querySelector('.ring-fg');
   var DASH = 264; // deve bater com stroke-dasharray no CSS
-  var LOAD_MS = 6000; // duracao fixa do loading
-  var loadDone = false, playerStarted = false, loadRaf = null, loadStart = 0;
-  var SKEY = 'vt_loaded_' + CFG.id; // marca, por sessao, que o loading ja rodou
+  var MAX_WAIT_MS = 25000; // teto: nao espera mais que isso (conexao lenta)
+  var loadDone = false, playerStarted = false, loadRaf = null, loadStart = 0, shownP = 0;
+  var SKEY = 'vt_loaded_' + CFG.id;
   function nowMs(){ return (window.performance && performance.now) ? performance.now() : Date.now(); }
   function setLoad(p){
     p = Math.max(0, Math.min(100, p));
+    if(p < shownP) p = shownP; // nunca volta atras
+    shownP = p;
     loadPctEl.textContent = Math.round(p) + '%';
     if(ringFg) ringFg.style.strokeDashoffset = DASH * (1 - p / 100);
+  }
+  // segundos continuos ja bufferizados a partir do inicio do video
+  function bufferedSecs(){
+    try{
+      for(var i=0;i<v.buffered.length;i++){
+        if(v.buffered.start(i) <= 0.6) return v.buffered.end(i);
+      }
+      if(v.buffered.length) return v.buffered.end(v.buffered.length-1);
+    }catch(e){}
+    return 0;
+  }
+  // alvo de buffer: 15% da duracao, no minimo 8s (garante preview fluida)
+  function targetSecs(){
+    var d = v.duration || 0;
+    if(!d || !isFinite(d)) return 8;
+    return Math.min(d, Math.max(8, d * 0.15));
   }
   function startPlayerOnce(){
     if(playerStarted) return; playerStarted = true;
@@ -606,23 +624,20 @@ const PLAYER_JS = `
   }
   function loadTick(){
     if(loadDone) return;
-    var p = ((nowMs() - loadStart) / LOAD_MS) * 100;
-    setLoad(p);
-    if(p >= 100){ finishLoad(); return; }
+    var elapsed = nowMs() - loadStart;
+    var tgt = targetSecs();
+    var real = tgt > 0 ? (bufferedSecs() / tgt) : 0;   // progresso real do buffer (0-1)
+    var floor = Math.min(0.92, elapsed / MAX_WAIT_MS);  // piso temporal: barra nunca trava
+    setLoad(Math.max(real, floor) * 100);
+    // pronto quando ha buffer suficiente OU estourou o tempo maximo
+    if(real >= 1 || elapsed >= MAX_WAIT_MS){ finishLoad(); return; }
     loadRaf = requestAnimationFrame(loadTick);
   }
   function beginLoading(){
-    // ja carregou nesta sessao (reload do iframe)? pula o loading, vai direto
     var skip = false;
     try{ skip = sessionStorage.getItem(SKEY) === '1'; }catch(e){}
-    if(skip){
-      setLoad(100);
-      startPlayerOnce();
-      hideLoadingNow();
-      return;
-    }
-    // grava a marca JA AGORA (nao espera os 6s): se o site recarregar o iframe
-    // no meio do loading, o proximo load detecta e pula -> nunca repete o anel.
+    if(skip){ setLoad(100); startPlayerOnce(); hideLoadingNow(); return; }
+    // marca JA AGORA: se o site recarregar o iframe no meio, o proximo load pula
     try{ sessionStorage.setItem(SKEY, '1'); }catch(e){}
     setLoad(0);
     loadStart = nowMs();

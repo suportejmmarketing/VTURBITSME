@@ -729,11 +729,23 @@ export function renderPlayerScript(video, publicUrl) {
   box.style.setProperty('aspect-ratio', '${w}/${h}', 'important'); // fallback pro 1o paint
   box.style.setProperty('align-self', 'center', 'important');      // nao estica em flex
   var iframe = document.createElement('iframe');
-  iframe.src = ${JSON.stringify(playerUrl)};
+  var SRC = ${JSON.stringify(playerUrl)};
+  iframe.src = SRC;
   iframe.allow = 'autoplay; fullscreen; encrypted-media';
   iframe.setAttribute('allowfullscreen','');
   iframe.setAttribute('loading','eager');
   iframe.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:0;display:block;';
+  // BLINDAGEM: impede pixels de terceiros (UTMify, Facebook) de reescreverem o src
+  // do iframe (o que forcaria reload). O src fica CONGELADO no valor original.
+  try{
+    Object.defineProperty(iframe, 'src', { configurable:false,
+      get:function(){ return SRC; }, set:function(){ /* ignora reescrita */ } });
+  }catch(e){}
+  var _setAttr = iframe.setAttribute.bind(iframe);
+  iframe.setAttribute = function(name, val){
+    if(String(name).toLowerCase() === 'src' && val !== SRC) return; // bloqueia troca de src
+    return _setAttr(name, val);
+  };
   box.appendChild(iframe);
   if (current && current.parentNode) current.parentNode.insertBefore(box, current);
   else document.body.appendChild(box);
@@ -762,7 +774,9 @@ export function renderPlayerIframe(video, publicUrl) {
   const ar = (w && h) ? `${w}/${h}` : '16/9';
   const vertical = h > w && w > 0;
   const maxW = vertical ? '405px' : '760px';
+  const fid = `vslFrame-${video.id}`;
   return `<div style="position:relative;width:100%;max-width:${maxW};aspect-ratio:${ar};margin:0 auto;background:#000;">
-  <iframe src="${playerUrl}" style="position:absolute;inset:0;width:100%;height:100%;border:0;" allow="autoplay; fullscreen; encrypted-media" allowfullscreen loading="eager"></iframe>
-</div>`;
+  <iframe id="${fid}" src="${playerUrl}" style="position:absolute;inset:0;width:100%;height:100%;border:0;" allow="autoplay; fullscreen; encrypted-media" allowfullscreen loading="eager"></iframe>
+</div>
+<script>(function(){var f=document.getElementById(${JSON.stringify(fid)});if(!f)return;var s=f.getAttribute('src');try{Object.defineProperty(f,'src',{configurable:false,get:function(){return s;},set:function(){}});}catch(e){}var o=f.setAttribute.bind(f);f.setAttribute=function(n,v){if(String(n).toLowerCase()==='src'&&v!==s)return;return o(n,v);};})();<\/script>`;
 }

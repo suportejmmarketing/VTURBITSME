@@ -575,7 +575,19 @@ const PLAYER_JS = `
   var MAX_WAIT_MS = 25000; // teto: nao espera mais que isso (conexao lenta)
   var loadDone = false, playerStarted = false, loadRaf = null, loadStart = 0, shownP = 0;
   var SKEY = 'vt_loaded_' + CFG.id;
+  var NAMEFLAG = 'vtok:' + CFG.id; // marca em window.name (persiste em reload, nao bloqueada)
   function nowMs(){ return (window.performance && performance.now) ? performance.now() : Date.now(); }
+  // ja carregou nesta aba/iframe? (window.name resiste a reload e nao e bloqueado
+  // por anti-rastreamento; sessionStorage e fallback quando permitido)
+  function alreadyLoaded(){
+    try{ if(String(window.name).indexOf(NAMEFLAG) >= 0) return true; }catch(e){}
+    try{ if(sessionStorage.getItem(SKEY) === '1') return true; }catch(e){}
+    return false;
+  }
+  function markLoaded(){
+    try{ if(String(window.name).indexOf(NAMEFLAG) < 0) window.name = (window.name ? window.name + ';' : '') + NAMEFLAG; }catch(e){}
+    try{ sessionStorage.setItem(SKEY, '1'); }catch(e){}
+  }
   function setLoad(p){
     p = Math.max(0, Math.min(100, p));
     if(p < shownP) p = shownP; // nunca volta atras
@@ -615,7 +627,7 @@ const PLAYER_JS = `
     if(loadDone) return; loadDone = true;
     if(loadRaf){ cancelAnimationFrame(loadRaf); loadRaf = null; }
     setLoad(100);
-    try{ sessionStorage.setItem(SKEY, '1'); }catch(e){}
+    markLoaded();
     startPlayerOnce();
     setTimeout(function(){
       loadEl.classList.add('done');
@@ -634,11 +646,10 @@ const PLAYER_JS = `
     loadRaf = requestAnimationFrame(loadTick);
   }
   function beginLoading(){
-    var skip = false;
-    try{ skip = sessionStorage.getItem(SKEY) === '1'; }catch(e){}
-    if(skip){ setLoad(100); startPlayerOnce(); hideLoadingNow(); return; }
+    // ja carregou nesta aba/iframe (reload)? pula o anel, vai direto pro video
+    if(alreadyLoaded()){ setLoad(100); startPlayerOnce(); hideLoadingNow(); return; }
     // marca JA AGORA: se o site recarregar o iframe no meio, o proximo load pula
-    try{ sessionStorage.setItem(SKEY, '1'); }catch(e){}
+    markLoaded();
     setLoad(0);
     loadStart = nowMs();
     loadRaf = requestAnimationFrame(loadTick);

@@ -207,6 +207,8 @@ html[data-theme="light"] .controls{background:linear-gradient(transparent,rgba(0
 .controls.off{display:none}
 /* durante a previa mudo, esconde a barra/controles inteiros */
 .controls.preview-hidden{display:none}
+/* durante a previa: so o overlay responde; esconde barra E botao de play do canto */
+#stage.in-preview .controls,#stage.in-preview .corner-play{display:none!important}
 .track{transition:none}
 /* modo VSL: esconde os botoes, mantem so a barra de progresso colada na base */
 .controls.minimal{background:none;padding:0}
@@ -380,7 +382,8 @@ const PLAYER_JS = `
       inPreview = true;
       v.muted = true; v.loop = true;
       updateMuteUI();
-      controls.classList.add('preview-hidden'); // esconde a barra durante a previa
+      stage.classList.add('in-preview');        // esconde barra + botao de play do canto
+      controls.classList.add('preview-hidden');
       if(S.showUnmuteButton) showBig();          // mostra a caixa "clique para ouvir"
       var pp = v.play();
       if(pp&&pp.catch) pp.catch(function(){});
@@ -399,14 +402,18 @@ const PLAYER_JS = `
   function showBig(){ applyVisual(); big.classList.add('show'); }
   function hideBig(){ big.classList.remove('show'); }
 
+  var unmuting = false; // guard: evita doUnmute rodar 2x (detectInteraction + click)
   function doUnmute(){
+    if(unmuting) return; unmuting = true;
+    setTimeout(function(){ unmuting = false; }, 400);
     if(inPreview){
       // sai da previa: reinicia do comeco, tira loop, liga som, mostra a barra
       inPreview = false;
+      stage.classList.remove('in-preview');
+      controls.classList.remove('preview-hidden');
       v.loop = !!S.loop;
       try{ v.currentTime = 0; }catch(e){}
       maxT = 0;
-      controls.classList.remove('preview-hidden');
     }
     v.muted = false;
     updateMuteUI();
@@ -646,6 +653,8 @@ const PLAYER_JS = `
     loadRaf = requestAnimationFrame(loadTick);
   }
   function beginLoading(){
+    // no EDITOR (?preview=1) nunca mostra loading -> overlay fica livre pra arrastar
+    if(PREVIEW){ hideLoadingNow(); startPlayerOnce(); return; }
     // ja carregou nesta aba/iframe (reload)? pula o anel, vai direto pro video
     if(alreadyLoaded()){ setLoad(100); startPlayerOnce(); hideLoadingNow(); return; }
     // marca JA AGORA: se o site recarregar o iframe no meio, o proximo load pula

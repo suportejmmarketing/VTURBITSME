@@ -711,6 +711,8 @@ const PLAYER_JS = `
 
   // init
   applyVisual();
+  // se a previa esta ativa, esconde a barra JA (antes do loading) -> nunca pisca
+  if(S.previewMode && !PREVIEW){ inPreview = true; stage.classList.add('in-preview'); controls.classList.add('preview-hidden'); }
   loadSource();      // video bufferiza sob demanda (preload="metadata")
   beginLoading();    // loading temporal de 6s (ou pula, se for reload do iframe)
 })();

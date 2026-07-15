@@ -426,8 +426,11 @@ const PLAYER_JS = `
     e.preventDefault(); e.stopPropagation();
     doUnmute();
   });
-  // Detectar interacao: qualquer clique/tecla/scroll na pagina libera o som
-  if(S.detectInteraction && !PREVIEW){
+  // Detectar interacao: libera o som numa interacao do usuario.
+  // IMPORTANTE: durante a PREVIA (previewMode), NAO reage a scroll/tecla — so o
+  // clique no overlay ativa. Senao o scroll da pagina sairia da previa sozinho
+  // (mostrando a barra antes do usuario clicar).
+  if(S.detectInteraction && !PREVIEW && !S.previewMode){
     var onInteract = function(){
       if(big.classList.contains('show')){ doUnmute(); }
       window.removeEventListener('pointerdown', onInteract);

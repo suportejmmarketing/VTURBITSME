@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>VTurb-Self · Painel</title>
-<link rel="stylesheet" href="style.css?v=16">
+<link rel="stylesheet" href="style.css?v=17">
 </head>
 <body>
 <!-- LOGIN -->
@@ -183,6 +183,8 @@
         <h4>🎨 Templates prontos</h4>
         <div id="overlayTemplates" class="tpl-grid"></div>
         <p class="muted">Arraste a caixa no preview para mover, e os pontos azuis para redimensionar.</p>
+        <p class="muted sm-note">⚠️ O layout do overlay é separado por <b>🖥 PC</b> e <b>📱 Mobile</b> (botões no topo do preview). Ajuste os dois.</p>
+        <button class="btn btn-ghost full" onclick="copyLayoutToOther()">📋 Copiar layout atual para o outro (PC ⇄ Mobile)</button>
         <h4>🔇 Ícone central</h4>
         <div class="seg" data-setting="overlay.icon">
           <button data-val="video-muted">Vídeo mudo</button>
@@ -220,6 +222,6 @@
 </div>
 
 <div id="toast" class="toast"></div>
-<script src="app.js?v=16"></script>
+<script src="app.js?v=17"></script>
 </body>
 </html>

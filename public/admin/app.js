@@ -281,6 +281,15 @@ function updateDeviceUI(){
   $('devDesktop').classList.toggle('active', DEVICE==='desktop');
   $('devMobile').classList.toggle('active', DEVICE==='mobile');
 }
+// copia o layout (posicao+tamanho) do device atual para o outro
+function copyLayoutToOther(){
+  if(!CURRENT) return;
+  const from = DEVICE, to = DEVICE==='desktop' ? 'mobile' : 'desktop';
+  const src = CURRENT.settings.overlay[from];
+  CURRENT.settings.overlay[to] = { x:src.x, y:src.y, w:src.w, h:src.h };
+  pushSettings(); scheduleSave();
+  toast(`✓ Layout do ${from==='desktop'?'PC':'Mobile'} copiado para ${to==='desktop'?'PC':'Mobile'}`);
+}
 
 // ---- tabs ----
 $$('.tab').forEach(t=> t.addEventListener('click', ()=> switchTab(t.dataset.tab)));
